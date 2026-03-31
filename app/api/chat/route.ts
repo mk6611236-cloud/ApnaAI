@@ -1,8 +1,8 @@
 // app/api/chat/route.ts
 import { NextResponse } from "next/server";
 
-// मनीष भाई, यहाँ v1beta को हटाकर v1 कर दिया है, अब Google इसे तुरंत पहचान लेगा
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
+// मनीष भाई, यहाँ v1beta के साथ gemini-1.5-flash-latest कर दिया है, जो सबसे स्टेबल है
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent";
 
 type ChatMessage = {
   role: "user" | "assistant";
