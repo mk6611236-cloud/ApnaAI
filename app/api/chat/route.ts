@@ -1,8 +1,8 @@
 // app/api/chat/route.ts
 import { NextResponse } from "next/server";
 
-// मनीष भाई, यहाँ से 'edge' और 'force-dynamic' हटा दिया है ताकि Error न आए
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+// मनीष भाई, यहाँ v1beta को हटाकर v1 कर दिया है, अब Google इसे तुरंत पहचान लेगा
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -33,7 +33,7 @@ Assistant:
 function getFriendlyError(apiErrorMessage?: string) {
   const msg = (apiErrorMessage || "").toLowerCase();
   if (msg.includes("high demand")) return "Gemini par abhi bahut load hai. 1-2 min baad try karo.";
-  if (msg.includes("api key not valid") || msg.includes("permission denied")) return "Gemini API key sahi nahi lag rahi. Vercel dashboard variables check karein.";
+  if (msg.includes("api key not valid") || msg.includes("permission denied")) return "Gemini API key sahi nahi lag rahi. Vercel dashboard check karein.";
   if (msg.includes("quota") || msg.includes("rate limit")) return "Aaj ka Gemini limit khatam ho gaya. Thodi der baad phir try karo.";
   return "Gemini se abhi response nahi mila. Network issue ho sakta hai.";
 }
