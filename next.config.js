@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // मनीष भाई, यहाँ से 'output: export' हटा दिया है ताकि Chat काम करे
   images: {
     unoptimized: true,
   },
