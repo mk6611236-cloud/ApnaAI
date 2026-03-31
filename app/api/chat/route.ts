@@ -1,14 +1,14 @@
 // app/api/chat/route.ts
 import { NextResponse } from "next/server";
 
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+// मनीष भाई, यहाँ मैंने मॉडल का नाम gemini-1.5-flash कर दिया है जो ज़्यादा स्टेबल है
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
-// System prompt ko add kiya jaaye
 const SYSTEM_PROMPT = `
 You are Hindustan AI / ApnaAI.
 Speak naturally in Hindi or Hinglish.
@@ -32,30 +32,32 @@ Assistant:
 
 function getFriendlyError(apiErrorMessage?: string) {
   const msg = (apiErrorMessage || "").toLowerCase();
-
   if (msg.includes("high demand")) return "Gemini par abhi bahut load hai. 1-2 min baad try karo.";
-  if (msg.includes("api key not valid") || msg.includes("permission denied")) return "Gemini API key sahi nahi lag rahi. .env.local check karo.";
+  if (msg.includes("api key not valid") || msg.includes("permission denied")) return "Gemini API key sahi nahi lag rahi. Vercel settings check karo.";
   if (msg.includes("quota") || msg.includes("rate limit")) return "Aaj ka Gemini limit khatam ho gaya. Thodi der baad phir try karo.";
-  if (msg.includes("not found") || msg.includes("model")) return "Gemini model issue hai. Backend config check karo.";
-  return "Gemini se abhi response nahi mila. Thodi der baad try karo.";
+  return "Gemini se abhi response nahi mila. Network check karke dobara try karo.";
 }
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey)
-      return NextResponse.json({ reply: "GEMINI_API_KEY .env.local me missing hai." }, { status: 500 });
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      return NextResponse.json({ reply: "API Key missing hai. Vercel dashboard me check karein." }, { status: 500 });
+    }
 
     const body = await req.json();
     const messages: ChatMessage[] = Array.isArray(body?.messages) ? body.messages : [];
 
-    if (!messages.length)
-      return NextResponse.json({ reply: "Koi message nahi mila. Kuch likhkar bhejo." }, { status: 400 });
+    if (!messages.length) {
+      return NextResponse.json({ reply: "Kuch likhkar bhejo." }, { status: 400 });
+    }
 
     const prompt = buildPrompt(messages);
 
+    // Timeout को थोड़ा बढ़ा दिया है ताकि नेट स्लो हो तो भी काम करे
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 20000); 
 
     const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: "POST",
@@ -67,7 +69,6 @@ export async function POST(req: Request) {
     });
 
     clearTimeout(timeout);
-
     const data = await response.json();
 
     if (!response.ok) {
@@ -75,15 +76,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ reply: getFriendlyError(data?.error?.message) }, { status: 500 });
     }
 
-    // Streamlit style: .text check
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Koi response nahi mila. Dobara try karo.";
-
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Response nahi mila.";
     return NextResponse.json({ reply });
+
   } catch (error: any) {
-    console.error("Gemini REST API Error:", error);
+    console.error("Server Error:", error);
     if (error?.name === "AbortError") {
-      return NextResponse.json({ reply: "Request slow ho gaya. Dobara bhejo." }, { status: 500 });
+      return NextResponse.json({ reply: "Request slow hai. Dobara try karein." }, { status: 500 });
     }
-    return NextResponse.json({ reply: "Server error aaya. Gemini API request fail hui." }, { status: 500 });
+    return NextResponse.json({ reply: "Server issue. Ek baar refresh karke try karein." }, { status: 500 });
   }
 }
