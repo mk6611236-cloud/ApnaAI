@@ -1,10 +1,7 @@
 // app/api/chat/route.ts
 import { NextResponse } from "next/server";
 
-// मनीष भाई, ये 2 लाइनें नेटवर्क और सर्वर इशू को ठीक करने के लिए हैं
-export const runtime = 'edge'; 
-export const dynamic = 'force-dynamic';
-
+// मनीष भाई, यहाँ से 'edge' और 'force-dynamic' हटा दिया है ताकि Error न आए
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 type ChatMessage = {
@@ -36,9 +33,9 @@ Assistant:
 function getFriendlyError(apiErrorMessage?: string) {
   const msg = (apiErrorMessage || "").toLowerCase();
   if (msg.includes("high demand")) return "Gemini par abhi bahut load hai. 1-2 min baad try karo.";
-  if (msg.includes("api key not valid") || msg.includes("permission denied")) return "Gemini API key sahi nahi lag rahi. Vercel settings check karo.";
+  if (msg.includes("api key not valid") || msg.includes("permission denied")) return "Gemini API key sahi nahi lag rahi. Vercel dashboard variables check karein.";
   if (msg.includes("quota") || msg.includes("rate limit")) return "Aaj ka Gemini limit khatam ho gaya. Thodi der baad phir try karo.";
-  return "Gemini se abhi response nahi mila. Network check karke dobara try karo.";
+  return "Gemini se abhi response nahi mila. Network issue ho sakta hai.";
 }
 
 export async function POST(req: Request) {
@@ -59,7 +56,7 @@ export async function POST(req: Request) {
     const prompt = buildPrompt(messages);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); // Timeout 25 second कर दिया है
+    const timeout = setTimeout(() => controller.abort(), 25000); 
 
     const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: "POST",
