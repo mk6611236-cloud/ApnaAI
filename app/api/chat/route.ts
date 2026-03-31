@@ -1,13 +1,9 @@
 // app/api/chat/route.ts
 import { NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// मनीष भाई, यहाँ v1beta के साथ gemini-1.5-flash-latest कर दिया है, जो सबसे स्टेबल है
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent";
-
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
+// मनीष भाई, यह ऑफिशियल तरीका है, इसमें URL का कोई झंझट नहीं है
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
 
 const SYSTEM_PROMPT = `
 You are Hindustan AI / ApnaAI.
@@ -15,74 +11,40 @@ Speak naturally in Hindi or Hinglish.
 Solve Indian problems, coding, productivity, startup advice.
 `;
 
-function buildPrompt(messages: ChatMessage[]) {
-  const conversation = messages
-    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-    .join("\n");
-
-  return `
-${SYSTEM_PROMPT}
-
-Conversation:
-${conversation}
-
-Assistant:
-`.trim();
-}
-
-function getFriendlyError(apiErrorMessage?: string) {
-  const msg = (apiErrorMessage || "").toLowerCase();
-  if (msg.includes("high demand")) return "Gemini par abhi bahut load hai. 1-2 min baad try karo.";
-  if (msg.includes("api key not valid") || msg.includes("permission denied")) return "Gemini API key sahi nahi lag rahi. Vercel dashboard check karein.";
-  if (msg.includes("quota") || msg.includes("rate limit")) return "Aaj ka Gemini limit khatam ho gaya. Thodi der baad phir try karo.";
-  return "Gemini se abhi response nahi mila. Network issue ho sakta hai.";
-}
-
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     
     if (!apiKey) {
-      return NextResponse.json({ reply: "API Key missing hai. Vercel dashboard check karein." }, { status: 500 });
+      return NextResponse.json({ reply: "API Key missing है। Vercel dashboard चेक करें।" }, { status: 500 });
     }
 
     const body = await req.json();
-    const messages: ChatMessage[] = Array.isArray(body?.messages) ? body.messages : [];
+    const messages = body?.messages || [];
 
     if (!messages.length) {
-      return NextResponse.json({ reply: "Kuch likhkar bhejo." }, { status: 400 });
+      return NextResponse.json({ reply: "कुछ लिखकर भेजें।" }, { status: 400 });
     }
 
-    const prompt = buildPrompt(messages);
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); 
-
-    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
+    // गूगल मॉडल सेटअप
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
     });
 
-    clearTimeout(timeout);
-    const data = await response.json();
+    // आखिरी मैसेज को उठाना
+    const userPrompt = messages[messages.length - 1].content;
 
-    if (!response.ok) {
-      console.error("Gemini API Error:", data);
-      return NextResponse.json({ reply: getFriendlyError(data?.error?.message) }, { status: 500 });
-    }
+    // जवाब जनरेट करना
+    const result = await model.generateContent(`${SYSTEM_PROMPT}\n\nUser: ${userPrompt}`);
+    const response = await result.response;
+    const text = response.text();
 
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Response nahi mila.";
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply: text.trim() });
 
   } catch (error: any) {
-    console.error("Server Error:", error);
-    if (error?.name === "AbortError") {
-      return NextResponse.json({ reply: "Request slow hai. Dobara try karein." }, { status: 500 });
-    }
-    return NextResponse.json({ reply: "Server issue. Ek baar refresh karke try karein." }, { status: 500 });
+    console.error("Gemini Official Error:", error);
+    return NextResponse.json({ 
+      reply: "Gemini से जवाब नहीं मिला। शायद API Key या Network में दिक्कत है।" 
+    }, { status: 500 });
   }
 }
