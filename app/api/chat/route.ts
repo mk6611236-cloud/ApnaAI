@@ -1,7 +1,10 @@
 // app/api/chat/route.ts
 import { NextResponse } from "next/server";
 
-// मनीष भाई, यहाँ मैंने मॉडल का नाम gemini-1.5-flash कर दिया है जो ज़्यादा स्टेबल है
+// मनीष भाई, ये 2 लाइनें नेटवर्क और सर्वर इशू को ठीक करने के लिए हैं
+export const runtime = 'edge'; 
+export const dynamic = 'force-dynamic';
+
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 type ChatMessage = {
@@ -43,7 +46,7 @@ export async function POST(req: Request) {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     
     if (!apiKey) {
-      return NextResponse.json({ reply: "API Key missing hai. Vercel dashboard me check karein." }, { status: 500 });
+      return NextResponse.json({ reply: "API Key missing hai. Vercel dashboard check karein." }, { status: 500 });
     }
 
     const body = await req.json();
@@ -55,9 +58,8 @@ export async function POST(req: Request) {
 
     const prompt = buildPrompt(messages);
 
-    // Timeout को थोड़ा बढ़ा दिया है ताकि नेट स्लो हो तो भी काम करे
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000); 
+    const timeout = setTimeout(() => controller.abort(), 25000); // Timeout 25 second कर दिया है
 
     const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: "POST",
