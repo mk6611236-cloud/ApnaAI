@@ -474,25 +474,37 @@ ${formattedChat}
     }
   };
 
+  // --- यहाँ मुख्य सुधार किया गया है ---
   const callChatApi = async (payloadMessages: Message[], mode: ToolModeId) => {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messages: payloadMessages,
-        systemPrompt: getModeConfig(mode).system,
-        mode,
-      }),
-    });
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: payloadMessages,
+          systemPrompt: getModeConfig(mode).system,
+          mode,
+        }),
+      });
 
-    const data = await res.json();
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Gemini Connection Error");
+      }
 
-    return (
-      data.reply ||
-      "Abhi response nahi mila. Thodi der baad phir try karo."
-    );
+      const data = await res.json();
+
+      // हमारे route.ts के हिसाब से data.reply का इस्तेमाल
+      return (
+        data.reply ||
+        "Abhi response nahi mila. Thodi der baad phir try karo."
+      );
+    } catch (error: any) {
+      console.error("API Call Error:", error);
+      return `Error: ${error.message || "Server busy hai"}`;
+    }
   };
 
   const sendMessage = async (customInput?: string) => {
@@ -545,7 +557,7 @@ ${formattedChat}
           ...updatedMessages,
           {
             role: "assistant",
-            content: "Network ya server issue aaya. Thodi der baad phir try karo.",
+            content: "Network issue aaya. Thodi der baad phir try karo.",
           },
         ],
         title: newTitle,
@@ -594,7 +606,7 @@ ${formattedChat}
           ...retryMessages,
           {
             role: "assistant",
-            content: "Retry me bhi server issue aaya. Thodi der baad phir try karo.",
+            content: "Retry fail ho gaya. Thodi der baad phir try karo.",
           },
         ],
       });
@@ -611,7 +623,7 @@ ${formattedChat}
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert("Aapke browser me voice input support nahi hai.");
+      alert("Browser voice support nahi karta.");
       return;
     }
 
@@ -670,7 +682,7 @@ ${formattedChat}
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      alert("Sirf image file upload karo.");
+      alert("Sirf photo upload karein.");
       return;
     }
 
@@ -690,6 +702,7 @@ ${formattedChat}
         />
       )}
 
+      {/* Sidebar Section */}
       <aside
         className={`fixed left-0 top-[81px] z-50 h-[calc(100vh-81px)] w-80 transform border-r border-white/10 bg-zinc-950 p-4 transition-transform duration-300 md:static md:z-auto md:flex md:translate-x-0 md:flex-col ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -737,7 +750,7 @@ ${formattedChat}
                 <span className="text-lg">{tool.emoji}</span>
                 <div>
                   <div className="font-semibold">{tool.label}</div>
-                  <div className="text-xs opacity-70">Tap to switch mode</div>
+                  <div className="text-xs opacity-70">Tap to switch</div>
                 </div>
               </button>
             ))}
@@ -752,32 +765,18 @@ ${formattedChat}
             <span className="text-2xl">{activeModeConfig.emoji}</span>
             <div>
               <div className="font-semibold text-white">{activeModeConfig.label}</div>
-              <div className="text-xs text-white/60">Smart workflow enabled</div>
+              <div className="text-xs text-white/60">Optimized workflow</div>
             </div>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {activeModeConfig.suggestions.map((item) => (
-              <button
-                key={item}
-                onClick={() => applyPreset(item)}
-                className="w-full rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-left text-xs text-white/80 transition hover:bg-white/10"
-              >
-                {item}
-              </button>
-            ))}
           </div>
         </div>
 
         <div className="mt-6 min-h-0 flex-1">
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/50">
-            Chat History
+            History
           </h3>
-
           <div className="space-y-2 overflow-y-auto pr-1">
             {filteredSessions.map((session) => {
               const sessionMode = getModeConfig(session.mode || "bharat");
-
               return (
                 <div
                   key={session.id}
@@ -798,32 +797,19 @@ ${formattedChat}
                     <div className="truncate font-medium">
                       {sessionMode.emoji} {session.title}
                     </div>
-                    <div className="mt-1 text-xs opacity-60">
-                      {new Date(session.createdAt).toLocaleDateString()}
-                    </div>
                   </button>
-
                   <div className="mt-2 flex gap-2 px-2 pb-1">
                     <button
                       onClick={() => renameChat(session.id, session.title)}
-                      className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                        activeChatId === session.id
-                          ? "bg-black/10 text-black hover:bg-black/20"
-                          : "bg-white/10 text-white hover:bg-white/20"
-                      }`}
+                      className="text-[10px] underline opacity-60 hover:opacity-100"
                     >
-                      ✏ Rename
+                      Rename
                     </button>
-
                     <button
                       onClick={() => deleteChat(session.id)}
-                      className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                        activeChatId === session.id
-                          ? "bg-black/10 text-black hover:bg-black/20"
-                          : "bg-white/10 text-white hover:bg-white/20"
-                      }`}
+                      className="text-[10px] underline opacity-60 hover:opacity-100"
                     >
-                      ✕ Delete
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -833,75 +819,44 @@ ${formattedChat}
         </div>
       </aside>
 
+      {/* Main Content */}
       <div className="flex flex-1 flex-col">
+        {/* Top bar shortcuts */}
         <div className="border-b border-white/10 px-4 py-4 md:px-8">
           <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-2">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 md:hidden"
+              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white md:hidden"
             >
-              ☰ Menu
+              ☰
             </button>
 
-            {QUICK_PROMPTS.map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => applyPreset(prompt)}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/80 transition hover:bg-white/10"
-              >
-                {prompt}
-              </button>
-            ))}
+            <div className="flex flex-wrap gap-2">
+              {QUICK_PROMPTS.slice(0, 3).map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => applyPreset(prompt)}
+                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] text-white/60 transition hover:bg-white/10"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
 
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              <button
-                onClick={shareCurrentChat}
-                className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-4 py-2 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-              >
-                📤 Share
-              </button>
-
-              <button
-                onClick={copyCurrentChat}
-                className="rounded-full border border-violet-500/30 bg-violet-500/20 px-4 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-500/30"
-              >
-                📋 Copy
-              </button>
-
-              <button
-                onClick={downloadCurrentChat}
-                className="rounded-full border border-blue-500/30 bg-blue-500/20 px-4 py-2 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/30"
-              >
-                ⬇ Download
-              </button>
-
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/80">
-                {activeModeConfig.emoji} {activeModeConfig.label}
-              </span>
-
+            <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => setVoiceEnabled((prev) => !prev)}
-                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
-                  voiceEnabled
-                    ? "border border-green-500/30 bg-green-500/20 text-green-300"
-                    : "border border-white/10 bg-white/5 text-white/70"
+                className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${
+                  voiceEnabled ? "bg-green-500/20 text-green-300" : "bg-white/5 text-white/40"
                 }`}
               >
                 {voiceEnabled ? "🔊 Voice ON" : "🔇 Voice OFF"}
               </button>
-
-              {speaking && (
-                <button
-                  onClick={stopSpeaking}
-                  className="rounded-full border border-red-500/30 bg-red-500/20 px-4 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/30"
-                >
-                  ⏹ Stop Voice
-                </button>
-              )}
             </div>
           </div>
         </div>
 
+        {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
           <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
             {messages.map((message, index) => {
@@ -912,48 +867,26 @@ ${formattedChat}
                 message.content === lastAnimatedReply;
 
               return (
-                <div
-                  key={index}
-                  className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-                >
+                <div key={index} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                   <div
-                    className={`max-w-[88%] rounded-3xl px-5 py-4 shadow-lg ${
-                      isUser
-                        ? "bg-white text-black"
-                        : "border border-white/10 bg-white/5 text-white backdrop-blur"
+                    className={`max-w-[85%] rounded-3xl px-5 py-4 ${
+                      isUser ? "bg-white text-black" : "border border-white/10 bg-white/5 text-white"
                     }`}
                   >
-                    <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wider opacity-60">
-                      <span>{isUser ? "You" : activeModeConfig.label}</span>
-
-                      {!isUser && (
-                        <button
-                          onClick={() => speakText(message.content)}
-                          className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-semibold text-white hover:bg-white/20"
-                        >
-                          🔊 Play
-                        </button>
-                      )}
+                    <div className="mb-1 text-[10px] font-bold uppercase opacity-40">
+                      {isUser ? "You" : activeModeConfig.label}
                     </div>
 
                     {message.image && (
-                      <div className="mb-3 overflow-hidden rounded-2xl border border-black/10">
-                        <Image
-                          src={message.image}
-                          alt="Uploaded"
-                          width={500}
-                          height={300}
-                          className="h-auto w-full object-cover"
-                        />
+                      <div className="mb-3 overflow-hidden rounded-xl border border-white/10">
+                        <Image src={message.image} alt="Upload" width={400} height={300} />
                       </div>
                     )}
 
                     {isLastAssistant ? (
                       <TypingText text={message.content} />
                     ) : (
-                      <p className="whitespace-pre-wrap text-sm leading-7">
-                        {message.content}
-                      </p>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
                     )}
                   </div>
                 </div>
@@ -962,99 +895,37 @@ ${formattedChat}
 
             {loading && (
               <div className="flex justify-start">
-                <div className="max-w-[88%] rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-white backdrop-blur">
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wider opacity-60">
-                    {activeModeConfig.label}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-white/70">
-                    <span className="inline-flex gap-1">
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.3s]" />
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-white/70 [animation-delay:-0.15s]" />
-                      <span className="h-2 w-2 animate-bounce rounded-full bg-white/70" />
-                    </span>
-                    <span>{activeModeConfig.label} soch raha hai...</span>
-                  </div>
+                <div className="animate-pulse rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-xs text-white/50">
+                  {activeModeConfig.label} soch raha hai...
                 </div>
               </div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
         </div>
 
-        {showRetry && !loading && (
-          <div className="px-4 pb-3 md:px-8">
-            <div className="mx-auto flex max-w-4xl items-center justify-between rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
-              <span>Gemini abhi busy lag raha hai. Dobara try kar sakte ho.</span>
-              <button
-                onClick={retryLastMessage}
-                className="rounded-xl bg-yellow-300 px-4 py-2 font-semibold text-black transition hover:scale-105"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="border-t border-white/10 bg-black/20 px-4 py-4 backdrop-blur md:px-8 md:py-6">
+        {/* Input Area */}
+        <div className="border-t border-white/10 bg-black/20 p-4 md:p-6 backdrop-blur-xl">
           <div className="mx-auto max-w-4xl">
             {selectedImage && (
-              <div className="mb-3 rounded-3xl border border-white/10 bg-white/5 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-white/80">
-                    Selected Image
-                  </p>
-                  <button
-                    onClick={() => setSelectedImage(null)}
-                    className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200"
-                  >
-                    Remove
-                  </button>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl">
-                  <Image
-                    src={selectedImage}
-                    alt="Selected preview"
-                    width={500}
-                    height={300}
-                    className="h-auto max-h-72 w-full object-cover"
-                  />
-                </div>
+              <div className="mb-4 relative w-32 h-32 overflow-hidden rounded-2xl border border-white/20">
+                <Image src={selectedImage} alt="Preview" fill className="object-cover" />
+                <button
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute right-1 top-1 rounded-full bg-red-500 p-1 text-white text-[8px]"
+                >
+                  ✕
+                </button>
               </div>
             )}
 
-            <div className="mb-3 flex flex-wrap gap-2">
-              {activeModeConfig.suggestions.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => applyPreset(item)}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/80 transition hover:bg-white/10"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex items-end gap-3 rounded-3xl border border-white/10 bg-white/5 p-3">
-              <button
-                onClick={listening ? stopListening : startListening}
-                className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                  listening
-                    ? "bg-red-500 text-white"
-                    : "bg-white/10 text-white hover:bg-white/20"
-                }`}
-              >
-                {listening ? "🎙️ Listening..." : "🎤 Mic"}
-              </button>
-
+            <div className="flex items-end gap-2 rounded-3xl border border-white/10 bg-white/5 p-2 pr-3">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+                className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-xl transition hover:bg-white/10"
               >
-                🖼 Upload
+                🖼
               </button>
-
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1063,33 +934,41 @@ ${formattedChat}
                 onChange={handleImageUpload}
               />
 
+              <button
+                onClick={listening ? stopListening : startListening}
+                className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl transition ${
+                  listening ? "bg-red-500 animate-pulse" : "bg-white/5 hover:bg-white/10"
+                }`}
+              >
+                {listening ? "⏹" : "🎤"}
+              </button>
+
               <textarea
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={`Ask ${activeModeConfig.label}...`}
-                className="max-h-40 min-h-[56px] flex-1 resize-none bg-transparent px-3 py-3 text-sm leading-7 text-white placeholder:text-white/40 outline-none"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
                   }
                 }}
+                placeholder={`Ask ${activeModeConfig.label}...`}
+                className="max-h-32 min-h-[48px] flex-1 resize-none bg-transparent px-2 py-3 text-sm text-white outline-none placeholder:text-white/20"
               />
 
               <button
                 onClick={() => sendMessage()}
                 disabled={loading || (!input.trim() && !selectedImage)}
-                className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-12 items-center justify-center rounded-2xl bg-white px-6 text-sm font-bold text-black transition hover:scale-105 disabled:opacity-30"
               >
                 {loading ? "..." : "Send"}
               </button>
             </div>
+            <p className="mt-3 text-center text-[10px] text-white/20">
+              ApnaAI beta • Powered by Gemini 1.5 Flash 🇮🇳
+            </p>
           </div>
-
-          <p className="mx-auto mt-3 max-w-4xl text-center text-xs text-white/40">
-            ApnaAI beta me hai • Smart AI Modes enabled • Voice input/output browser support par depend karta hai
-          </p>
         </div>
       </div>
     </div>
